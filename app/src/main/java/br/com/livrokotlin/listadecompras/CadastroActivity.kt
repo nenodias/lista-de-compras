@@ -5,8 +5,11 @@ import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.os.Bundle
+import android.provider.SyncStateContract.Helpers.insert
+import  org.jetbrains.anko.db.insert;
 import android.support.v7.app.AppCompatActivity
 import kotlinx.android.synthetic.main.activity_cadastro.*
+import org.jetbrains.anko.toast
 
 class CadastroActivity : AppCompatActivity() {
 
@@ -23,12 +26,23 @@ class CadastroActivity : AppCompatActivity() {
             val qtd = txt_qtd.text.toString()
             val valor = txt_valor.text.toString()
             if(produto.isNotBlank() && qtd.isNotBlank() && valor.isNotBlank()) {
-                val prod = Produto(produto, qtd.toInt(), valor.toDouble(), imageBitMap)
-                produtosGlobal.add(prod)
+                database.use {
+                    val idProduto = insert("produtos",
+                        "nome" to produto,
+                        "quantidade" to qtd.toInt(),
+                        "valor" to valor.toDouble(),
+                        "foto" to imageBitMap?.toByteArray()
+                    )
+                    if( idProduto != -1L){
+                        toast("Item inserido com sucesso!")
+                    }else {
+                        toast("Erro ao inserir no banco de dados!")
+                    }
 
-                txt_produto.text.clear()
-                txt_qtd.text.clear()
-                txt_valor.text.clear()
+                    txt_produto.text.clear()
+                    txt_qtd.text.clear()
+                    txt_valor.text.clear()
+                }
                 //finish();//Se quiser que quando o item for salvo voltar para a listagem
             } else {
                 txt_produto.error = if(txt_produto.text.isEmpty()) "Preencha o nome" else null

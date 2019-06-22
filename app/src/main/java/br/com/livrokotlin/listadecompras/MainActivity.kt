@@ -9,9 +9,14 @@ import android.widget.AdapterView
 import android.widget.ArrayAdapter
 import android.widget.ListView
 import kotlinx.android.synthetic.main.activity_main.*
+import org.jetbrains.anko.db.delete
+import org.jetbrains.anko.db.parseList
+import org.jetbrains.anko.db.rowParser
+import org.jetbrains.anko.db.select
 import java.text.NumberFormat
 import java.util.*
 import org.jetbrains.anko.startActivity;
+import org.jetbrains.anko.toast
 
 class MainActivity : AppCompatActivity() {
 
@@ -36,21 +41,41 @@ class MainActivity : AppCompatActivity() {
         list_view_produtos.setOnItemLongClickListener {
                 adapterView: AdapterView<*>, view: View, position: Int, id: Long ->
             val item = produtosAdapter.getItem(position)
-            produtosGlobal.remove(item)
+            deletarProduto(item.id)
             this.updateAdapter()
             true
         }
 
     }
 
+    fun deletarProduto(idProduto: Int) {
+        database.use {
+            delete("produtos", "id = {id}","id" to idProduto)
+        }
+        toast("Item deletado com sucesso!")
+    }
+
     fun updateAdapter() {
         val adapter = list_view_produtos.adapter as ProdutoAdapter
-        adapter.clear()
-        adapter.addAll(produtosGlobal)
+        database.use {
+            select("produtos").exec {
+                val parser = rowParser {
+                    id: Int,
+                    nome: String,
+                    quantidade: Int,
+                    valor: Double,
+                    foto: ByteArray? ->
+                        Produto(id, nome, quantidade, valor, foto?.toBitmap())
+                }
+                var listaProdutos = parseList(parser)
+                adapter.clear()
+                adapter.addAll(listaProdutos)
 
-        val soma = produtosGlobal.sumByDouble { it.valor * it.quantidade }
-        val f = NumberFormat.getCurrencyInstance(Locale("pt","br"))
-        txt_total.text = "Total: ${ f.format(soma) }"
+                val soma = listaProdutos.sumByDouble { it.valor * it.quantidade }
+                val f = NumberFormat.getCurrencyInstance(Locale("pt","br"))
+                txt_total.text = "Total: ${ f.format(soma) }"
+            }
+        }
     }
 
     override fun onResume() {
