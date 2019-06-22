@@ -9,6 +9,7 @@ import android.provider.SyncStateContract.Helpers.insert
 import  org.jetbrains.anko.db.insert;
 import android.support.v7.app.AppCompatActivity
 import kotlinx.android.synthetic.main.activity_cadastro.*
+import org.jetbrains.anko.db.update
 import org.jetbrains.anko.toast
 
 class CadastroActivity : AppCompatActivity() {
@@ -17,9 +18,25 @@ class CadastroActivity : AppCompatActivity() {
 
     var imageBitMap: Bitmap? = null
 
+    var idProduto: Int? = null
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_cadastro)
+
+        val produto = intent?.getSerializableExtra("produto")
+        if( produto != null && produto is Produto) {
+            idProduto = produto.id
+            txt_produto.setText(produto.nome)
+            txt_qtd.setText(produto.quantidade.toString())
+            txt_valor.setText(produto.valor.toString())
+            if(produto.foto != null) {
+                img_foto_produto.setImageBitmap(produto.foto)
+            }
+        } else {
+            idProduto = null
+        }
+
 
         btn_inserir.setOnClickListener {
             val produto = txt_produto.text.toString()
@@ -27,21 +44,32 @@ class CadastroActivity : AppCompatActivity() {
             val valor = txt_valor.text.toString()
             if(produto.isNotBlank() && qtd.isNotBlank() && valor.isNotBlank()) {
                 database.use {
-                    val idProduto = insert("produtos",
-                        "nome" to produto,
-                        "quantidade" to qtd.toInt(),
-                        "valor" to valor.toDouble(),
-                        "foto" to imageBitMap?.toByteArray()
-                    )
-                    if( idProduto != -1L){
-                        toast("Item inserido com sucesso!")
-                    }else {
-                        toast("Erro ao inserir no banco de dados!")
+                    var operacao = "inserido"
+                    if(idProduto == null) {
+                        val idNovo = insert(
+                            "produtos",
+                            "nome" to produto,
+                            "quantidade" to qtd.toInt(),
+                            "valor" to valor.toDouble(),
+                            "foto" to imageBitMap?.toByteArray()
+                        )
+                        if (idNovo != -1L) {
+                            toast("Item $operacao com sucesso!")
+                        } else {
+                            toast("Erro ao inserir no banco de dados!")
+                        }
+                    } else {
+                        operacao = "atualizado"
+                        update("produtos",
+                            "nome" to produto,
+                            "quantidade" to qtd.toInt(),
+                            "valor" to valor.toDouble(),
+                            "foto" to imageBitMap?.toByteArray()).whereArgs(" id = {id}", "id" to idProduto.toString()).exec()
+                        toast("Item $operacao com sucesso!")
+                        idProduto = null
                     }
 
-                    txt_produto.text.clear()
-                    txt_qtd.text.clear()
-                    txt_valor.text.clear()
+                    limparCampos()
                 }
                 //finish();//Se quiser que quando o item for salvo voltar para a listagem
             } else {
@@ -53,6 +81,13 @@ class CadastroActivity : AppCompatActivity() {
         img_foto_produto.setOnClickListener {
             abrirGaleria()
         }
+    }
+
+    fun limparCampos(){
+        idProduto = null
+        txt_produto.text.clear()
+        txt_qtd.text.clear()
+        txt_valor.text.clear()
     }
 
     fun abrirGaleria(){
